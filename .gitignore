@@ -1,0 +1,8 @@
+.idea/
+Include/
+Lib/
+venv/
+Scripts/
+__pycache__/
+*.cfg
+Download
