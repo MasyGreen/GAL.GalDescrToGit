@@ -332,6 +332,12 @@ def EncodeFiles():
         printmsg.PrintErrror(f'Encode file')
 
 
+# Get date whit out time/Получить дату без времени
+def GetDateFromDatetime(value: datetime) -> datetime:
+    result: datetime = datetime.datetime(int(value.year), int(value.month), int(value.day), 0, 0)
+    return result
+
+
 # Get name class.var to lower. Template: classname.valuename=
 # Params f"{appsettings.MailSMTPServer=}" => MailSMTPServer
 def GetClassValueNameLow(variable):
@@ -452,8 +458,7 @@ def ReadConfig(filepath):
 # Get list last update file/Получение списка файлов из последнего обновления
 def GetLastFileList(workDate: datetime):
     result = []
-    printmsg.PrintDebug(f'{workDate=}; {workDate.year}')
-    noTimeDate: datetime = datetime.datetime(int(workDate.year), int(workDate.month), int(workDate.day), 0, 0)
+    noTimeDate: datetime = GetDateFromDatetime(workDate)
     printmsg.PrintDebug(f'Convert: {workDate}>>>{noTimeDate}')
 
     for path, subdirs, files in os.walk(currentDownloadFolder):
@@ -584,15 +589,22 @@ def SendingEmail(workDate: datetime, lastUpdateFileList: []):
 
 # Get local max file date/Получение максимальной даты редактирования файла в локальном каталоге
 def GetMaxDateFromLocal():
+    printmsg.PrintHeader('Start GetMaxDateFromLocal')
     result: datetime = datetime.datetime(1, 1, 1, 0, 0)
-    for path, subdirs, files in os.walk(currentDownloadFolder):
-        for file in files:
-            if file.find(".TXT") != -1:
-                # дата модификации файла
-                timeStamp = os.path.getmtime(os.path.join(path, file))
-                curFileDate = datetime.datetime.fromtimestamp(timeStamp)  # int в формате YYYYMMDD
-                if result < curFileDate:
-                    result = curFileDate
+    try:
+        for path, subdirs, files in os.walk(currentDownloadFolder):
+            for file in files:
+                if file.find(".TXT") != -1:
+                    # дата модификации файла
+                    timeStamp = os.path.getmtime(os.path.join(path, file))
+                    curFileDate = datetime.datetime.fromtimestamp(timeStamp)  # int в формате YYYYMMDD
+                    if result < curFileDate:
+                        result = curFileDate
+        printmsg.PrintSuccess(f'result: {result}')
+    except Exception as inst:
+        printmsg.PrintErrror(f'{type(inst)}')  # the exception instance
+        printmsg.PrintErrror(f'{inst.args}')  # arguments stored in .args
+        printmsg.PrintErrror(f'{inst}')  # __str__ allows args to be printed directly,
 
     return result
 
@@ -600,33 +612,29 @@ def GetMaxDateFromLocal():
 def main():
     printmsg.PrintHeader('Start work')
 
-    IsHaveNewFile = False  # проверка необходимости работы - только если есть новые файлы на FTP
+    IsHaveNewFile = False  # проверка необходимости работы - только если есть новые файлы на FTP (по умолчанию должна быть False)
     IsGetMaxLocalDate = True  # получить дату редактирования с локально
     IsGetMaxFTPDate = True  # получить дату редактирования с FTP
-    IsDowloadFTP = False  # скачивать файлы с FTP
-    IsEncodeFile = False  # перекодировать файлы
-    IsDeleteDownloadFile = False  # удалять не конвертированные файлы
+    IsDowloadFTP = True  # скачивать файлы с FTP
+    IsEncodeFile = True  # перекодировать файлы
+    IsDeleteDownloadFile = True  # удалять не конвертированные файлы
     IsGetLastFileList = True  # получить список последних обновленных файлов
 
     # максимальная дата файла в DownLoad
     localMaxDate: datetime = datetime.datetime(1, 1, 1, 0, 0)
     if IsGetMaxLocalDate:
         localMaxDate = GetMaxDateFromLocal()
-        printmsg.PrintDebug(f'{localMaxDate=}')
 
     # максимальная дата файла на FTP
     ftpMaxDate: datetime = datetime.datetime(1, 1, 1, 0, 0)
     if IsGetMaxFTPDate:
         ftpMaxDate = ftpreader.GetMaxDateFromFTP()
-        printmsg.PrintDebug(f'{ftpMaxDate=}')
 
     # Проверка необходимости скачивания обновлений
-    if localMaxDate < ftpMaxDate:
+    if GetDateFromDatetime(localMaxDate) < GetDateFromDatetime(ftpMaxDate):
         IsHaveNewFile = True
     else:
         printmsg.PrintServiceMessage('Нет обновлений')
-
-    IsHaveNewFile = True
 
     if IsHaveNewFile:
         # Перекачать файлы с FTP
