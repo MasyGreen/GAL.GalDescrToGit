@@ -28,5 +28,9 @@ Work foldr Download
 * Clear file name/Из имени файла убираем версию
 * Decode to UTF8/Перекодируем в UTF8
 
-# Установка
+# Run/Запуск
+Репозиторий GIT  https://github.com/MasyGreen/GAL.GalDescrToGit
+
+* git clone git@github.com:MasyGreen/GAL.GalDescrToGit.git
+* В расписание Windows worker.bat (~15:00)
 
