@@ -1,24 +1,32 @@
-# Назначение
-Скачивание патчей обновлений для Galaktika ERP 9.1 с ftp.galaktika.ru
+# Point/Назначение
+Скачивание патчей обновлений для Галактики ERP 9.1 с ftp.galaktika.ru
+
+Download patches description for Galaktika ERP 9.1 from ftp.galaktika.ru
+
 Pyton 3.10
 
-# Настройки config.py
+# Settings/Настройки config.py
 
-* mailpassword = хеш-пароль для отправки почты 
-* mailsmtpserver = имя smtp сервера
-* mailsmtpport = порт smtp 587
-* mailadr = почтовый ящик отправителя
-* ftphost = ftp.galaktika.ru
-* ftpdir = pub/support/galaktika/bug_fix/GAL910/DESCRIPTIONS
-* issendmail = false (отправлять оповещение)
-* isprintdebug = true (выводить отладочные сообщения)
+* mailpassword = open key e-mail sender
+* mailsmtpserver = smtp server name (smtp.gmail.com)
+* mailsmtpport = smtp port (587)
+* mailfrom = sender e-mail
+* mailto = recipient e-mail
+* mailadditiontext = some comment (html style)
+* ftphost = ftp adr (ftp.galaktika.ru)
+* ftpdir = ftp path (pub/support/galaktika/bug_fix/GAL910/DESCRIPTIONS)
+* issendmail = send email (false)
+* isincludenewinmail = add in e-mail description for New Issue from last update file 
+* isprintdebug = show debug message (true)
 
-Note that the accepted values for the option are "1", "yes", "true", and "on"
+***Note that the accepted values for the option are "1", "yes", "true", and "on"***
 
-# Алгоритм
-* Скачиваем реестр описаний файлов обновлений с FTP
-* Из имени файла убираем версию
-* Перекодируем в UTF8
+# Step/Шаги
+Work foldr Download
+* Delete from work folder all *.txt file/удалить все файлы *.txt из рабочего каталога
+* Download file from FTP/Скачиваем реестр описаний файлов обновлений с FTP
+* Clear file name/Из имени файла убираем версию
+* Decode to UTF8/Перекодируем в UTF8
 
 # Установка
 

@@ -12,7 +12,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 
-# Addition class - print message
+# Addition class - print message/Дополнительный класс красивой печати типовых сообщений
 class PrintMsg:
     def __init__(self):
         self.IsPrintDebug: bool = False
@@ -34,7 +34,7 @@ class PrintMsg:
             print(f'{Fore.MAGENTA}{value}{Fore.WHITE}')
 
 
-# Addition class - settings
+# Addition class - settings/Дополнительный класс хранения настроек из CFG
 class AppSettings:
     def __init__(self):
         self.MailSMTPServer: str = ''
@@ -52,9 +52,8 @@ class AppSettings:
         return f'AppSettings: {self.__dict__} '
 
 
-# Thead download FTP
+# Thead download FTP/Потоковое скачивание файлов с FTP
 class DownloadFromFTP(threading.Thread):
-    """Потоковый загрузчик файлов"""
 
     def __init__(self, queue):
         """Инициализация потока"""
@@ -64,10 +63,10 @@ class DownloadFromFTP(threading.Thread):
     def run(self):
         """Запуск потока"""
         while True:
-            # Получаем url из очереди
+            # Получаем параметры из очереди
             params = self.queue.get()
 
-            # Скачиваем файл
+            # Обработка
             self.FunDownloadFromFTP(params)
 
             # Отправляем сигнал о том, что задача завершена
@@ -88,17 +87,16 @@ class DownloadFromFTP(threading.Thread):
 
         try:
             ftp = FTP(appsettings.FTPHost, timeout=400)
-            print(f"Login to FTP: {appsettings.FTPHost}, try goto {appsettings.FTPDir}. {ftp.login()}")
+            printmsg.PrintDebug(f"Login to FTP: {appsettings.FTPHost}, try goto {appsettings.FTPDir}. {ftp.login()}")
             ftp.cwd(appsettings.FTPDir)
             ftp.retrbinary("RETR " + ftpname, open(localfilepath, 'wb').write)
             ftp.quit()
 
-            # Установка времени редактирования файла
+            # Время файла
             dt_epoch = filedatetme.timestamp()
             os.utime(localfilepath, (dt_epoch, dt_epoch))
-
-            # Устанавливаем время редактирования
             printmsg.PrintSuccess(f'FTP ({curHash}). {ftpname}>>>{localname}')
+
         except Exception as inst:
             printmsg.PrintErrror(f'FTP ({curHash}). {type(inst)}')  # the exception instance
             printmsg.PrintErrror(f'FTP ({curHash}). {inst.args}')  # arguments stored in .args
@@ -107,10 +105,8 @@ class DownloadFromFTP(threading.Thread):
             ftp.close()  # Close FTP connection
 
 
-# Thead encode file
-class DecodeLocalFile(threading.Thread):
-    """Потоковый загрузчик файлов"""
-
+# Thead encode file/Потоковое перекодирование файла
+class EncodeLocalFile(threading.Thread):
     def __init__(self, queue):
         """Инициализация потока"""
         threading.Thread.__init__(self)
@@ -119,17 +115,16 @@ class DecodeLocalFile(threading.Thread):
     def run(self):
         """Запуск потока"""
         while True:
-            # Получаем url из очереди
+            # Получаем параметры из очереди
             params = self.queue.get()
 
-            # Скачиваем файл
-            self.FunDecodeLocalFile(params)
+            # Обработка
+            self.FunEncodeLocalFile(params)
 
             # Отправляем сигнал о том, что задача завершена
             self.queue.task_done()
 
-    def FunDecodeLocalFile(self, params):
-        _codec_page = 'windows-1251'
+    def FunEncodeLocalFile(self, params):
 
         filedatetme = params.get("filedatetme")
         filename = params.get("filename")
@@ -139,40 +134,43 @@ class DecodeLocalFile(threading.Thread):
         # Считаем хеш - чтоб разделить потоки для журнализации
         curHash = str(hash(filename))
 
-        printmsg.PrintHeader(f'DECODE ({curHash}). File: {pathfrom}')
+        printmsg.PrintHeader(f'ENCODE ({curHash}). File: {pathfrom}')
         try:
-            decode_test = ''
+            encodeText = ''
 
             with open(pathfrom, 'r', encoding='windows-1251') as fr:
-                for code_text in fr.readlines():
-                    if code_text[0] != '№':
-                        decode_test += code_text[:-1] + '\n'  # \r\n
+                for codeText in fr.readlines():
+                    # Убираем стоки с номерами задач
+                    # т.к. тогда всегда будут исправления из-за скользящей нумерации
+                    if codeText[0] != '№':
+                        encodeText += codeText[:-1] + '\n'  # \r\n
 
             with open(pathto, 'w', encoding='UTF-8') as fw:
-                fw.write(decode_test)
+                fw.write(encodeText)
 
             # Установка времени редактирования файла
             dt_epoch = filedatetme.timestamp()
             os.utime(pathto, (dt_epoch, dt_epoch))
 
-            printmsg.PrintSuccess(f'DECODE ({curHash}). {pathfrom}>>>{pathto}')
+            printmsg.PrintSuccess(f'ENCODE ({curHash}). {pathfrom}>>>{pathto}')
         except Exception as inst:
-            printmsg.PrintErrror(f'DECODE ({curHash}). {type(inst)}')  # the exception instance
-            printmsg.PrintErrror(f'DECODE ({curHash}). {inst.args}')  # arguments stored in .args
-            printmsg.PrintErrror(f'DECODE ({curHash}). {inst}')  # __str__ allows args to be printed directly,
+            printmsg.PrintErrror(f'ENCODE ({curHash}). {type(inst)}')  # the exception instance
+            printmsg.PrintErrror(f'ENCODE ({curHash}). {inst.args}')  # arguments stored in .args
+            printmsg.PrintErrror(f'ENCODE ({curHash}). {inst}')  # __str__ allows args to be printed directly,
 
 
-# Addition class - work with FTP
+# Addition class - work with FTP/Дополнительный класс работа с FTP
 class FTPReader:
 
-    # Get maximum file date from FTP
+    # Get maximum file date from FTP/Получение максимальной даты редактирования файла на FTP
     def GetMaxDateFromFTP(self) -> datetime:
+
         printmsg.PrintHeader('Start GetMaxDateFromFTP')
         result: datetime = datetime.datetime(1, 1, 1, 0, 0)
 
         try:
             ftp = FTP(appsettings.FTPHost)
-            print(f"Login to FTP: {appsettings.FTPHost}, try goto {appsettings.FTPDir}. {ftp.login()}")
+            printmsg.PrintDebug(f"Login to FTP: {appsettings.FTPHost}, try goto {appsettings.FTPDir}. {ftp.login()}")
 
             maxDateTime: datetime = datetime.datetime(1, 1, 1, 0, 0)  # максимальная дата файла int в формате YYYYMMDD
 
@@ -198,14 +196,15 @@ class FTPReader:
 
         return result
 
-    # Get list file from FTP
+    # Get list file from FTP/Получить список файлов с FTP с параметрами
     def GetFTPFileList(self):
+
         printmsg.PrintHeader('Start GetFTPFileList')
         result = []
 
         try:
             ftp = FTP(appsettings.FTPHost)
-            print(f"Login to FTP: {appsettings.FTPHost}, try goto {appsettings.FTPDir}. {ftp.login()}")
+            printmsg.PrintDebug(f"Login to FTP: {appsettings.FTPHost}, try goto {appsettings.FTPDir}. {ftp.login()}")
 
             files = ftp.mlsd(appsettings.FTPDir)  # Получаем файлы с датами с FTP
             for file in files:
@@ -216,7 +215,7 @@ class FTPReader:
                     local_file = re.sub('_(\d)+\.', '.',
                                         fileName)  # регулярное выражение '_'+ 'несколько цифр' + '.'
 
-                    # дата модификации файла
+                    # Время файла
                     timeStamp = file[1]['modify']
                     curFileDate = int(timeStamp[:8])  # int в формате YYYYMMDD
                     dt = datetime.datetime.strptime(str(curFileDate), '%Y%m%d')
@@ -237,6 +236,7 @@ class FTPReader:
 
         return result
 
+    # Delete old file and Download new/Удаление старых файлов и загрузка новых с FTP
     def DownLoadFTP(self):
         # Удалить все файлы *.txt + ".TXT_WIN1251 в каталоге назначения
         printmsg.PrintHeader(f'Delete old file')
@@ -254,10 +254,6 @@ class FTPReader:
 
         printmsg.PrintHeader(f'Starting create download list')
         FTPList = ftpreader.GetFTPFileList()  # список файлов с FTP
-
-        # with open(f'{currentDirectory}\JRN_{date.today()}.txt', 'w') as f:
-        #     for item in FTPList:
-        #         f.write("%s\n" % item)
 
         # Download FTP file
         printmsg.PrintHeader(f'Starting download FTP file')
@@ -280,9 +276,11 @@ class FTPReader:
         except:
             printmsg.PrintErrror(f'Download FTP')
 
-# Declde file to UTF8
-def DecodeFile():
-    # Удалить все файлы *.txt в каталоге назначения где в имени файла нет _WIN1251
+
+# Encode file to UTF8/Перекодирование файлов в UTF8 т.к. GIT не поддерживает WIN1251
+def EncodeFiles():
+    # Удалить все файлы *.txt в рабочем каталоге, где в имени файла нет _WIN1251
+    # это старые перекодированные файлы
     printmsg.PrintHeader(f'Delete old convert file')
     count = 0
     try:
@@ -313,22 +311,22 @@ def DecodeFile():
                 DOSCodeList.append(row)
                 printmsg.PrintDebug(row)
 
-    printmsg.PrintSuccess(f'Get DeCode {len(DOSCodeList)} file`s')
+    printmsg.PrintSuccess(f'Get EnCode {len(DOSCodeList)} file`s')
 
     printmsg.PrintHeader(f'Starting encode file')
     try:
-        queueDecodefile = Queue()
+        queueEncodefile = Queue()
         # Запускаем потом и очередь
         for i in range(10):
-            t = DecodeLocalFile(queueDecodefile)
+            t = EncodeLocalFile(queueEncodefile)
             t.daemon = True
             t.start()
         # Даем очереди нужные нам ссылки для скачивания
         for el in DOSCodeList:
-            queueDecodefile.put(el)
+            queueEncodefile.put(el)
 
         # Ждем завершения работы очереди
-        queueDecodefile.join()
+        queueEncodefile.join()
         printmsg.PrintSuccess(f'Encode {len(DOSCodeList)} files')
     except:
         printmsg.PrintErrror(f'Encode file')
@@ -349,7 +347,7 @@ def GetValueNameLow(variable):
     return varstr
 
 
-# Read config file
+# Read config file/Чтение конфигурационного файла
 def ReadConfig(filepath):
     if os.path.exists(filepath):
         printmsg.PrintHeader(f'Start ReadConfig')
@@ -450,7 +448,8 @@ def ReadConfig(filepath):
 
         return False
 
-# Get list last update file
+
+# Get list last update file/Получение списка файлов из последнего обновления
 def GetLastFileList(workDate: datetime):
     result = []
     printmsg.PrintDebug(f'{workDate=}; {workDate.year}')
@@ -473,15 +472,18 @@ def GetLastFileList(workDate: datetime):
 
     return result
 
-# Read new Issue from file
+
+# Read new Issue from file/Получение из файла текста новых правок
 def GetNewText(lastUpdateFileList: []) -> str:
     printmsg.PrintHeader('Start GetNewText')
-    result = '\n<h2>Content file</h2>\n'
+    result = '\n<h2>File content (new issue)</h2>\n'
     try:
+        indexF: int = 0
         for el in lastUpdateFileList:
+            indexF = indexF + 1
             filename = el.get("filename")
             filepath = el.get("filepath")
-            result += f'<h3>File name: {filename}</h3>\n'
+            result += f'<h3>{indexF} File {filename}</h3>\n'
 
             startI: bool = False  # Начало задачи
             issueHeader: bool = False  # Начало текста задачи
@@ -489,6 +491,7 @@ def GetNewText(lastUpdateFileList: []) -> str:
             isNewIssue: bool = False  # Признак новой задачи
             skeepFile: bool = False  # Признак пропуска файла, новые задачи вначале - дальше файл можно пропустить
             index = 0
+            indexI: int = 0
             with open(filepath, 'r', encoding='UTF-8') as fr:
                 for line in fr.readlines():
                     index = index + 1
@@ -516,11 +519,15 @@ def GetNewText(lastUpdateFileList: []) -> str:
                             isNewIssue = True
                         else:
                             skeepFile = True
+
                     if issueHeader:
+                        indexI = indexI + 1
                         issueHeader = False
-                        issueText += f'<p><b>{line[:-1]}</b></p>\n'
+                        issueText += f'<p><b>{indexF}.{indexI} {line[:-1]}</b></p>\n'
                     else:
-                        issueText += f'<p>{line[:-1]}</p>\n'
+                        curStr = str(line[:-1])
+                        if curStr != '' and curStr != None and curStr:
+                            issueText += f'{curStr}<br>\n'
 
         printmsg.PrintDebug(f'{result}')
         printmsg.PrintSuccess(f'Get new text in path')
@@ -531,17 +538,19 @@ def GetNewText(lastUpdateFileList: []) -> str:
 
     return result
 
-# Send email
+
+# Send email/Отправка e-mail
 def SendingEmail(workDate: datetime, lastUpdateFileList: []):
     printmsg.PrintHeader('Start SendingEmail')
     message = '<html><head></head><body>'
-    message += f"<p>Last check time: {datetime.datetime.now().strftime('%d %b %Y, %H:%M')}</p>\n"
-    message += f"<p>The last modification file date from FTP UTC:<b>{workDate.strftime('%d %b %Y, %H:%M')}</b></p>\n"
+    message += f"<p>Check time: <b>{datetime.datetime.now().strftime('%d %b %Y, %H:%M')}<b></p>\n"
+    message += f"<p>FTP UTC time: <b>{workDate.strftime('%d %b %Y, %H:%M')}</b></p>\n"
     message += f"<p>{appsettings.MailAdditionText}</p>\n\n"
 
-    message += f"<h2>List update file:</h2>\n"
+    message += f"<h2>Updated files list:</h2>\n<ul>\n"
     for el in lastUpdateFileList:
-        message += f'<p>   {el.get("filename")}</p>\n'
+        message += f'<li>{el.get("filename")}</li>\n'
+    message += f"</ul>\n"
 
     try:
         # Формирование текста сообщения e-mail
@@ -573,54 +582,88 @@ def SendingEmail(workDate: datetime, lastUpdateFileList: []):
         printmsg.PrintErrror(f'{inst}')  # __str__ allows args to be printed directly,
 
 
+# Get local max file date/Получение максимальной даты редактирования файла в локальном каталоге
+def GetMaxDateFromLocal():
+    result: datetime = datetime.datetime(1, 1, 1, 0, 0)
+    for path, subdirs, files in os.walk(currentDownloadFolder):
+        for file in files:
+            if file.find(".TXT") != -1:
+                # дата модификации файла
+                timeStamp = os.path.getmtime(os.path.join(path, file))
+                curFileDate = datetime.datetime.fromtimestamp(timeStamp)  # int в формате YYYYMMDD
+                if result < curFileDate:
+                    result = curFileDate
+
+    return result
+
+
 def main():
     printmsg.PrintHeader('Start work')
 
-    IsGetMaxDate = True  # получить дату редактирования с FTP
-    IsDowloadFTP = True  # скачивать файлы с FTP
-    IsDecodeFile = True  # перекодировать файлы
-    IsDeleteDownloadFile = True  # удалять не конвертированные файлы
+    IsHaveNewFile = False  # проверка необходимости работы - только если есть новые файлы на FTP
+    IsGetMaxLocalDate = True  # получить дату редактирования с локально
+    IsGetMaxFTPDate = True  # получить дату редактирования с FTP
+    IsDowloadFTP = False  # скачивать файлы с FTP
+    IsEncodeFile = False  # перекодировать файлы
+    IsDeleteDownloadFile = False  # удалять не конвертированные файлы
     IsGetLastFileList = True  # получить список последних обновленных файлов
 
+    # максимальная дата файла в DownLoad
+    localMaxDate: datetime = datetime.datetime(1, 1, 1, 0, 0)
+    if IsGetMaxLocalDate:
+        localMaxDate = GetMaxDateFromLocal()
+        printmsg.PrintDebug(f'{localMaxDate=}')
+
     # максимальная дата файла на FTP
-    ftpMaxDate: datetime = datetime.datetime.now()
-    if IsGetMaxDate:
+    ftpMaxDate: datetime = datetime.datetime(1, 1, 1, 0, 0)
+    if IsGetMaxFTPDate:
         ftpMaxDate = ftpreader.GetMaxDateFromFTP()
-        printmsg.PrintDebug(f'{ftpMaxDate}')
+        printmsg.PrintDebug(f'{ftpMaxDate=}')
 
-    # Перекачать файлы с FTP
-    if IsDowloadFTP:
-        ftpreader.DownLoadFTP()
+    # Проверка необходимости скачивания обновлений
+    if localMaxDate < ftpMaxDate:
+        IsHaveNewFile = True
+    else:
+        printmsg.PrintServiceMessage('Нет обновлений')
 
-    # Перекодировать в UTF8
-    if IsDecodeFile:
-        DecodeFile()
+    IsHaveNewFile = True
 
-    # Удалить не перекодированные файлы
-    if IsDeleteDownloadFile:
-        printmsg.PrintHeader(f'Starting delete DOS file')
-        count = 0
-        try:
-            for path, subdirs, files in os.walk(currentDownloadFolder):
-                for file in files:
-                    if file.find(".TXT_WIN1251") != -1:
-                        count = count + 1
-                        printmsg.PrintDebug(f'*{path}{file}')
-                        os.remove(os.path.join(path, file).lower())
-            printmsg.PrintSuccess(f'Delete {count} DOS file')
-        except:
-            printmsg.PrintErrror(f'Delete DOS file')
+    if IsHaveNewFile:
+        # Перекачать файлы с FTP
+        if IsDowloadFTP:
+            ftpreader.DownLoadFTP()
 
-    # Последние обновленные файлы
-    lastUpdateFileList = []
-    if IsGetLastFileList:
-        lastUpdateFileList = GetLastFileList(ftpMaxDate)
-        printmsg.PrintHeader(f'Find {len(lastUpdateFileList)} new file in path')
-        for el in lastUpdateFileList:
-            printmsg.PrintDebug(f'{el.get("filepath")}')
+        # Перекодировать в UTF8
+        if IsEncodeFile:
+            EncodeFiles()
 
-    if appsettings.IsSendMail:
-        SendingEmail(ftpMaxDate, lastUpdateFileList)
+        # Удалить не перекодированные файлы
+        if IsDeleteDownloadFile:
+            printmsg.PrintHeader(f'Starting delete DOS file')
+            count = 0
+            try:
+                for path, subdirs, files in os.walk(currentDownloadFolder):
+                    for file in files:
+                        if file.find(".TXT_WIN1251") != -1:
+                            count = count + 1
+                            printmsg.PrintDebug(f'*{path}{file}')
+                            os.remove(os.path.join(path, file).lower())
+                printmsg.PrintSuccess(f'Delete {count} DOS file')
+            except:
+                printmsg.PrintErrror(f'Delete DOS file')
+
+        # Последние обновленные файлы
+        lastUpdateFileList = []
+        if IsGetLastFileList:
+            lastUpdateFileList = GetLastFileList(ftpMaxDate)
+            printmsg.PrintHeader(f'Find {len(lastUpdateFileList)} new file in path')
+            for el in lastUpdateFileList:
+                printmsg.PrintDebug(f'{el.get("filepath")}')
+
+        # Отправка e-mail
+        if appsettings.IsSendMail and len(lastUpdateFileList) > 0:
+            SendingEmail(ftpMaxDate, lastUpdateFileList)
+
     printmsg.PrintSuccess('End work')
 
 
