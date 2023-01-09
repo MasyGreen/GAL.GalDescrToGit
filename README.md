@@ -25,8 +25,13 @@ Pyton 3.10
 Work foldr Download
 * Delete from work folder all *.txt file/удалить все файлы *.txt из рабочего каталога
 * Download file from FTP/Скачиваем реестр описаний файлов обновлений с FTP
-* Clear file name/Из имени файла убираем версию
-* Decode to UTF8/Перекодируем в UTF8
+* File name to Upper/Файлы переводим в верхний регистр т.к. Галактика постоянно меняет его
+* Clear file name/Из имени файла убираем версию и добавляя к расширению '_win1251'
+* Decode to UTF8/Перекодируем все файлы с '_win1251' из win1251 в UTF-8, в новом имени файла убираем '_win1251'
+* Delete temp file/Удаляем не перекодированные файлы
+
+# Issue/Известные проблемы
+На FTP могут быть 2 файла разных версий, загрузится случайный
 
 # Run/Запуск
 Репозиторий GIT  https://github.com/MasyGreen/GAL.GalDescrToGit
