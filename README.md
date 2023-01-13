@@ -10,14 +10,19 @@ Pyton 3.10
 * mailpassword = open key e-mail sender
 * mailsmtpserver = smtp server name (smtp.gmail.com)
 * mailsmtpport = smtp port (587)
-* mailfrom = sender e-mail
-* mailto = recipient e-mail
+* mailfrom = sender e-mail (a@a.com)
+* mailto = recipient e-mail (a@a.com or 'a@a.com, b@a.com)
 * mailadditiontext = some comment (html style)
 * ftphost = ftp adr (ftp.galaktika.ru)
 * ftpdir = ftp path (pub/support/galaktika/bug_fix/GAL910/DESCRIPTIONS)
 * issendmail = send email (false)
 * isincludenewinmail = add in e-mail description for New Issue from last update file 
 * isprintdebug = show debug message (true)
+* reminehost = RedMine host (http://192.168.1.1)
+* remineapikey = API key RedMine (j-980y13fhmu2q3f;oikad)
+* remineissueid = Redmine issue, watchers get email (8824)
+* redmineoverloadmail = replace mailto on email watchers (true)
+
 
 ***Note that the accepted values for the option are "1", "yes", "true", and "on"***
 

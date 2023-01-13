@@ -676,7 +676,7 @@ def GetEmailFromRedMine() -> str:
                     if len(emails) == 0:
                         emails = f'{str(usr.mail).strip()}'
                     else:
-                        emails = f'{emails};{str(usr.mail).strip()}'
+                        emails = f'{emails}, {str(usr.mail).strip()}'
 
         result = emails
     except Exception as inst:
