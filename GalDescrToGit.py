@@ -10,6 +10,7 @@ from colorama import Fore
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from redminelib import Redmine
 
 
 # Addition class - print message/Дополнительный класс красивой печати типовых сообщений
@@ -47,6 +48,10 @@ class AppSettings:
         self.IsIncludeNewInMail: bool = False
         self.FTPHost: str = ''
         self.FTPDir: str = ''
+        self.ReMineHost: str = 'http://192.168.1.1'
+        self.ReMineApiKey: str = ''
+        self.ReMineIssueId: str = ''
+        self.RedMineOverloadMail: bool = False
 
     def __str__(self):
         return f'AppSettings: {self.__dict__} '
@@ -407,6 +412,22 @@ def ReadConfig(filepath):
         printmsg.IsPrintDebug = config.has_option("Settings", varsettingsname) and config.getboolean("Settings",
                                                                                                      varsettingsname) or False
 
+        varsettingsname = GetClassValueNameLow(f"{appsettings.ReMineHost=}")
+        appsettings.ReMineHost = config.has_option("Settings", varsettingsname) and config.get("Settings",
+                                                                                               varsettingsname) or None
+
+        varsettingsname = GetClassValueNameLow(f"{appsettings.ReMineApiKey=}")
+        appsettings.ReMineApiKey = config.has_option("Settings", varsettingsname) and config.get("Settings",
+                                                                                                 varsettingsname) or None
+
+        varsettingsname = GetClassValueNameLow(f"{appsettings.ReMineIssueId=}")
+        appsettings.ReMineIssueId = config.has_option("Settings", varsettingsname) and config.get("Settings",
+                                                                                                  varsettingsname) or None
+
+        varsettingsname = GetClassValueNameLow(f"{appsettings.RedMineOverloadMail=}")
+        appsettings.RedMineOverloadMail = config.has_option("Settings", varsettingsname) and config.getboolean(
+            "Settings",
+            varsettingsname) or False
         printmsg.PrintSuccess(f'Read config: {filepath}')
         return True
     else:
@@ -445,6 +466,18 @@ def ReadConfig(filepath):
         config.set("Settings", varsettingsname, 'false')
 
         varsettingsname = GetClassValueNameLow(f"{printmsg.IsPrintDebug=}")
+        config.set("Settings", varsettingsname, 'false')
+
+        varsettingsname = GetClassValueNameLow(f"{appsettings.ReMineHost=}")
+        config.set("Settings", varsettingsname, 'http://192.168.1.1')
+
+        varsettingsname = GetClassValueNameLow(f"{appsettings.ReMineApiKey=}")
+        config.set("Settings", varsettingsname, '')
+
+        varsettingsname = GetClassValueNameLow(f"{appsettings.ReMineIssueId=}")
+        config.set("Settings", varsettingsname, '')
+
+        varsettingsname = GetClassValueNameLow(f"{appsettings.RedMineOverloadMail=}")
         config.set("Settings", varsettingsname, 'false')
 
         with open(filepath, "w") as config_file:
@@ -561,7 +594,12 @@ def SendingEmail(workDate: datetime, lastUpdateFileList: []):
         # Формирование текста сообщения e-mail
         e_mail_msg = MIMEMultipart()
         e_mail_msg["From"] = appsettings.MailFrom
-        e_mail_msg["To"] = appsettings.MailTo
+
+        if appsettings.RedMineOverloadMail:
+            e_mail_msg["To"] = GetEmailFromRedMine()
+        else:
+            e_mail_msg["To"] = appsettings.MailTo
+
         e_mail_msg["Subject"] = "Update ftp.galaktika.ru"
 
         if appsettings.IsIncludeNewInMail:
@@ -609,6 +647,46 @@ def GetMaxDateFromLocal():
     return result
 
 
+# Check email/проверка email по шаблону
+def СheckEmail(email) -> bool:
+    regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    # pass the regular expression
+    # and the string into the fullmatch() method
+    if (re.fullmatch(regex, email)):
+        return True
+    return False
+
+
+# Get watchers from Redmine.Issue to get e-mail/Получение наблюдателей из задачи RedMine, у наблюдателей получаем адреса почты
+def GetEmailFromRedMine() -> str:
+    printmsg.PrintHeader('Start GetEmailFromRedMine')
+    result = str(appsettings.MailTo)
+
+    try:
+        redmine = Redmine(appsettings.ReMineHost, key=appsettings.ReMineApiKey)
+        issue = redmine.issue.get(appsettings.ReMineIssueId, include=['watchers'])
+        printmsg.PrintDebug(f'Количество наблюдателей RedMine = {len(issue.watchers)}')
+
+        emails: str = ''
+        if len(issue.watchers) > 0:
+            for user in issue.watchers:
+                usr = redmine.user.get(user.id)
+                printmsg.PrintDebug(f'{user} = {usr.mail}')
+                if СheckEmail(str(usr.mail).strip()):
+                    if len(emails) == 0:
+                        emails = f'{str(usr.mail).strip()}'
+                    else:
+                        emails = f'{emails};{str(usr.mail).strip()}'
+
+        result = emails
+    except Exception as inst:
+        printmsg.PrintErrror(f'{type(inst)}')  # the exception instance
+        printmsg.PrintErrror(f'{inst.args}')  # arguments stored in .args
+        printmsg.PrintErrror(f'{inst}')  # __str__ allows args to be printed directly,
+
+    return result
+
+
 def main():
     printmsg.PrintHeader('Start work')
 
@@ -619,6 +697,7 @@ def main():
     IsEncodeFile = True  # перекодировать файлы
     IsDeleteDownloadFile = True  # удалять не конвертированные файлы
     IsGetLastFileList = True  # получить список последних обновленных файлов
+    IsSendingEmail = True  # отправка email
 
     # максимальная дата файла в DownLoad
     localMaxDate: datetime = datetime.datetime(1, 1, 1, 0, 0)
@@ -669,8 +748,9 @@ def main():
                 printmsg.PrintDebug(f'{el.get("filepath")}')
 
         # Отправка e-mail
-        if appsettings.IsSendMail and len(lastUpdateFileList) > 0:
-            SendingEmail(ftpMaxDate, lastUpdateFileList)
+        if IsSendingEmail:
+            if appsettings.IsSendMail and len(lastUpdateFileList) > 0:
+                SendingEmail(ftpMaxDate, lastUpdateFileList)
 
     printmsg.PrintSuccess('End work')
 
