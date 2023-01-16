@@ -248,11 +248,13 @@ class FTPReader:
         count = 0
         try:
             for path, subdirs, files in os.walk(currentDownloadFolder):
-                for file in files:
-                    if file.find(".txt") or file.find(".TXT_WIN1251") != -1:
-                        count = count + 1
-                        printmsg.PrintDebug(f'*{path}{file}')
-                        os.remove(os.path.join(path, file).lower())
+                if path == currentDownloadFolder:
+                    for file in files:
+                        if file.find(".txt") or file.find(".TXT_WIN1251") != -1:
+                            count = count + 1
+                            printmsg.PrintDebug(f'*{path}{file}')
+                            os.remove(os.path.join(path, file).lower())
+
             printmsg.PrintSuccess(f'Delete {count} old file')
         except:
             printmsg.PrintErrror(f'Delete old file')
@@ -289,12 +291,15 @@ def EncodeFiles():
     printmsg.PrintHeader(f'Delete old convert file')
     count = 0
     try:
+
         for path, subdirs, files in os.walk(currentDownloadFolder):
-            for file in files:
-                if file.find(".TXT_WIN1251") == -1:
-                    count = count + 1
-                    printmsg.PrintDebug(f'*{path}{file}')
-                    os.remove(os.path.join(path, file).lower())
+            if path == currentDownloadFolder:
+                for file in files:
+                    if file.find(".TXT_WIN1251") == -1:
+                        count = count + 1
+                        printmsg.PrintDebug(f'*{path}{file}')
+                        os.remove(os.path.join(path, file).lower())
+
         printmsg.PrintSuccess(f'Delete {count} old file')
     except:
         printmsg.PrintErrror(f'Delete old file')
@@ -302,19 +307,21 @@ def EncodeFiles():
     # Файлы для перкодировки
     printmsg.PrintHeader(f'Starting get list encode file')
     DOSCodeList = []
-    for path, subdirs, files in os.walk(currentDownloadFolder):
-        for file in files:
-            if file.find(".TXT_WIN1251") != -1:
-                # дата модификации файла
-                timeStamp = os.path.getmtime(os.path.join(path, file))
-                curFileDate = datetime.datetime.fromtimestamp(timeStamp)  # int в формате YYYYMMDD
 
-                row = {"filename": file,
-                       "pathfrom": f'{os.path.join(path, file)}',
-                       "pathto": f'{os.path.join(path, file.replace("_WIN1251", ""))}',
-                       "filedatetme": curFileDate}
-                DOSCodeList.append(row)
-                printmsg.PrintDebug(row)
+    for path, subdirs, files in os.walk(currentDownloadFolder):
+        if path == currentDownloadFolder:
+            for file in files:
+                if file.find(".TXT_WIN1251") != -1:
+                    # дата модификации файла
+                    timeStamp = os.path.getmtime(os.path.join(path, file))
+                    curFileDate = datetime.datetime.fromtimestamp(timeStamp)  # int в формате YYYYMMDD
+
+                    row = {"filename": file,
+                           "pathfrom": f'{os.path.join(path, file)}',
+                           "pathto": f'{os.path.join(path, file.replace("_WIN1251", ""))}',
+                           "filedatetme": curFileDate}
+                    DOSCodeList.append(row)
+                    printmsg.PrintDebug(row)
 
     printmsg.PrintSuccess(f'Get EnCode {len(DOSCodeList)} file`s')
 
@@ -495,18 +502,19 @@ def GetLastFileList(workDate: datetime):
     printmsg.PrintDebug(f'Convert: {workDate}>>>{noTimeDate}')
 
     for path, subdirs, files in os.walk(currentDownloadFolder):
-        for file in files:
-            if file.find(".TXT") != -1:
-                # дата модификации файла
-                timeStamp = os.path.getmtime(os.path.join(path, file))
-                curFileDate = datetime.datetime.fromtimestamp(timeStamp)  # int в формате YYYYMMDD
+        if path == currentDownloadFolder:
+            for file in files:
+                if file.find(".TXT") != -1:
+                    # дата модификации файла
+                    timeStamp = os.path.getmtime(os.path.join(path, file))
+                    curFileDate = datetime.datetime.fromtimestamp(timeStamp)  # int в формате YYYYMMDD
 
-                if noTimeDate == curFileDate:
-                    row = {"filename": file,
-                           "filepath": f'{os.path.join(path, file)}',
-                           "filedatetme": curFileDate}
-                    result.append(row)
-                    printmsg.PrintDebug(row)
+                    if noTimeDate == curFileDate:
+                        row = {"filename": file,
+                               "filepath": f'{os.path.join(path, file)}',
+                               "filedatetme": curFileDate}
+                        result.append(row)
+                        printmsg.PrintDebug(row)
 
     return result
 
@@ -590,35 +598,44 @@ def SendingEmail(workDate: datetime, lastUpdateFileList: []):
         message += f'<li>{el.get("filename")}</li>\n'
     message += f"</ul>\n"
 
+    if appsettings.IsIncludeNewInMail:
+        message += GetNewText(lastUpdateFileList)
+
+    message += '</body></html>'
+
     try:
-        # Формирование текста сообщения e-mail
-        e_mail_msg = MIMEMultipart()
-        e_mail_msg["From"] = appsettings.MailFrom
+
+        # Список получателей
+        emailist = []
 
         if appsettings.RedMineOverloadMail:
-            e_mail_msg["To"] = GetEmailFromRedMine()
+            emailist = GetEmailFromRedMine().split(',')
         else:
-            e_mail_msg["To"] = appsettings.MailTo
+            emailist = appsettings.MailTo.split(',')
 
-        e_mail_msg["Subject"] = "Update ftp.galaktika.ru"
 
-        if appsettings.IsIncludeNewInMail:
-            message += GetNewText(lastUpdateFileList)
+        for curEmail in emailist:
+            printmsg.PrintServiceMessage(f'Send e-mail: {curEmail}')
 
-        message += '</body></html>'
-        e_mail_msg.attach(MIMEText(message, 'html'))
+            # Формирование текста сообщения e-mail
+            e_mail_msg = MIMEMultipart()
+            e_mail_msg["From"] = appsettings.MailFrom
+            e_mail_msg["To"] = curEmail
+            e_mail_msg["Subject"] = "Update ftp.galaktika.ru"
+            e_mail_msg.attach(MIMEText(message, 'html'))
 
-        printmsg.PrintDebug(f'{e_mail_msg.as_string()}')
+            printmsg.PrintDebug(f'{e_mail_msg.as_string()}')
 
-        # Отправка сообщения
-        server = smtplib.SMTP(appsettings.MailSMTPServer, appsettings.MailSMTPPort)
-        server.starttls()
-        server.login(appsettings.MailFrom, appsettings.MailPassword)
+            # Отправка сообщения
+            server = smtplib.SMTP(appsettings.MailSMTPServer, appsettings.MailSMTPPort)
+            server.starttls()
+            server.login(appsettings.MailFrom, appsettings.MailPassword)
 
-        text = e_mail_msg.as_string()
-        server.sendmail(appsettings.MailFrom, appsettings.MailTo, text)
-        server.quit()
-        printmsg.PrintSuccess(f'Sending email')
+            text = e_mail_msg.as_string()
+            server.sendmail(appsettings.MailFrom, appsettings.MailTo, text)
+            server.quit()
+            printmsg.PrintSuccess(f'Sending email')
+
     except Exception as inst:
         printmsg.PrintErrror(f'{type(inst)}')  # the exception instance
         printmsg.PrintErrror(f'{inst.args}')  # arguments stored in .args
@@ -631,13 +648,15 @@ def GetMaxDateFromLocal():
     result: datetime = datetime.datetime(1, 1, 1, 0, 0)
     try:
         for path, subdirs, files in os.walk(currentDownloadFolder):
-            for file in files:
-                if file.find(".TXT") != -1:
-                    # дата модификации файла
-                    timeStamp = os.path.getmtime(os.path.join(path, file))
-                    curFileDate = datetime.datetime.fromtimestamp(timeStamp)  # int в формате YYYYMMDD
-                    if result < curFileDate:
-                        result = curFileDate
+            if path == currentDownloadFolder:
+                for file in files:
+                    if file.find(".TXT") != -1:
+                        # дата модификации файла
+                        timeStamp = os.path.getmtime(os.path.join(path, file))
+                        curFileDate = datetime.datetime.fromtimestamp(timeStamp)  # int в формате YYYYMMDD
+                        if result < curFileDate:
+                            result = curFileDate
+
         printmsg.PrintSuccess(f'result: {result}')
     except Exception as inst:
         printmsg.PrintErrror(f'{type(inst)}')  # the exception instance
@@ -690,7 +709,7 @@ def GetEmailFromRedMine() -> str:
 def main():
     printmsg.PrintHeader('Start work')
 
-    IsHaveNewFile = False  # проверка необходимости работы - только если есть новые файлы на FTP (по умолчанию должна быть False)
+    IsHaveNewFile = True  # проверка необходимости работы - только если есть новые файлы на FTP (по умолчанию должна быть False)
     IsGetMaxLocalDate = True  # получить дату редактирования с локально
     IsGetMaxFTPDate = True  # получить дату редактирования с FTP
     IsDowloadFTP = True  # скачивать файлы с FTP
@@ -730,11 +749,13 @@ def main():
             count = 0
             try:
                 for path, subdirs, files in os.walk(currentDownloadFolder):
-                    for file in files:
-                        if file.find(".TXT_WIN1251") != -1:
-                            count = count + 1
-                            printmsg.PrintDebug(f'*{path}{file}')
-                            os.remove(os.path.join(path, file).lower())
+                    if path == currentDownloadFolder:
+                        for file in files:
+                            if file.find(".TXT_WIN1251") != -1:
+                                count = count + 1
+                                printmsg.PrintDebug(f'*{path}{file}')
+                                os.remove(os.path.join(path, file).lower())
+
                 printmsg.PrintSuccess(f'Delete {count} DOS file')
             except:
                 printmsg.PrintErrror(f'Delete DOS file')
