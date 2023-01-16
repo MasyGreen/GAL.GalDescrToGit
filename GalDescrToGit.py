@@ -709,7 +709,7 @@ def GetEmailFromRedMine() -> str:
 def main():
     printmsg.PrintHeader('Start work')
 
-    IsHaveNewFile = True  # проверка необходимости работы - только если есть новые файлы на FTP (по умолчанию должна быть False)
+    IsHaveNewFile = False  # проверка необходимости работы - только если есть новые файлы на FTP (по умолчанию должна быть False)
     IsGetMaxLocalDate = True  # получить дату редактирования с локально
     IsGetMaxFTPDate = True  # получить дату редактирования с FTP
     IsDowloadFTP = True  # скачивать файлы с FTP
