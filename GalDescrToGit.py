@@ -632,7 +632,7 @@ def SendingEmail(workDate: datetime, lastUpdateFileList: []):
             server.login(appsettings.MailFrom, appsettings.MailPassword)
 
             text = e_mail_msg.as_string()
-            server.sendmail(appsettings.MailFrom, appsettings.MailTo, text)
+            server.sendmail(appsettings.MailFrom, curEmail, text)
             server.quit()
             printmsg.PrintSuccess(f'Sending email')
 
