@@ -613,7 +613,6 @@ def SendingEmail(workDate: datetime, lastUpdateFileList: []):
         else:
             emailist = appsettings.MailTo.split(',')
 
-
         for curEmail in emailist:
             printmsg.PrintServiceMessage(f'Send e-mail: {curEmail}')
 
@@ -705,6 +704,36 @@ def GetEmailFromRedMine() -> str:
 
     return result
 
+# Check folder/сли есть *.TXT_WIN1251 - то надо удалить все файлы т.е. предыдущий запуск окончился ошибкой
+def CheckFolderToErrorEnd():
+    printmsg.PrintHeader(f'Start CheckFolder')
+    isError: bool = False
+    try:
+        for path, subdirs, files in os.walk(currentDownloadFolder):
+            if path == currentDownloadFolder:
+                for file in files:
+                    if file.find(".TXT_WIN1251") != -1:
+                        isError = True
+
+    except:
+        printmsg.PrintErrror(f'Delete old file')
+
+    printmsg.PrintSuccess(f'{isError=}')
+    count: int = 0
+    if isError:
+        try:
+            for path, subdirs, files in os.walk(currentDownloadFolder):
+                if path == currentDownloadFolder:
+                    for file in files:
+                        if file.find(".txt") or file.find(".TXT_WIN1251") != -1:
+                            count = count + 1
+                            printmsg.PrintDebug(f'*{path}{file}')
+                            os.remove(os.path.join(path, file).lower())
+
+            printmsg.PrintSuccess(f'Delete {count} old file')
+        except:
+            printmsg.PrintErrror(f'Delete old file')
+
 
 def main():
     printmsg.PrintHeader('Start work')
@@ -717,6 +746,9 @@ def main():
     IsDeleteDownloadFile = True  # удалять не конвертированные файлы
     IsGetLastFileList = True  # получить список последних обновленных файлов
     IsSendingEmail = True  # отправка email
+
+    # Если есть *.TXT_WIN1251 - то надо удалить все файлы т.е. предыдущий запуск окончился ошибкой
+    CheckFolderToErrorEnd()
 
     # максимальная дата файла в DownLoad
     localMaxDate: datetime = datetime.datetime(1, 1, 1, 0, 0)
