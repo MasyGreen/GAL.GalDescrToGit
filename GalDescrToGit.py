@@ -12,6 +12,11 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from redminelib import Redmine
 
+# Установка пакетов для Win11
+# pip3 install python-redmine
+# pip3 install colorama
+# python -m pip install --upgrade pip
+
 
 # Addition class - print message/Дополнительный класс красивой печати типовых сообщений
 class PrintMsg:
@@ -816,7 +821,7 @@ if __name__ == '__main__':
     appsettings = AppSettings()  # Настройки
 
     printmsg.PrintServiceMessage(f'Last update: Cherepanov Maxim masygreen@gmail.com (c), 01.2023')
-    printmsg.PrintServiceMessage(f'Download Galaktika descrtiption')
+    printmsg.PrintServiceMessage(f'Download Galaktika description')
     currentDirectory = os.getcwd()
     configFilePath = os.path.join(currentDirectory, 'config.cfg')
 
