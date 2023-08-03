@@ -12,6 +12,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from redminelib import Redmine
 
+
 # Установка пакетов для Win11
 # pip3 install python-redmine
 # pip3 install colorama
@@ -640,6 +641,15 @@ def SendingEmail(workDate: datetime, lastUpdateFileList: []):
             server.quit()
             printmsg.PrintSuccess(f'Sending email')
 
+            try:
+                logfile = os.path.join(currentDirectory, f"{curEmail}.txt")
+                with open(logfile, 'a', encoding='utf-8') as f:
+                    f.write(f"{curEmail}\n\n{text}\n")
+            except Exception as inst:
+                printmsg.PrintErrror(f'{type(inst)}')  # the exception instance
+                printmsg.PrintErrror(f'{inst.args}')  # arguments stored in .args
+                printmsg.PrintErrror(f'{inst}')  # __str__ allows args to be printed directly,
+
     except Exception as inst:
         printmsg.PrintErrror(f'{type(inst)}')  # the exception instance
         printmsg.PrintErrror(f'{inst.args}')  # arguments stored in .args
@@ -708,6 +718,7 @@ def GetEmailFromRedMine() -> str:
         printmsg.PrintErrror(f'{inst}')  # __str__ allows args to be printed directly,
 
     return result
+
 
 # Check folder/сли есть *.TXT_WIN1251 - то надо удалить все файлы т.е. предыдущий запуск окончился ошибкой
 def CheckFolderToErrorEnd():
