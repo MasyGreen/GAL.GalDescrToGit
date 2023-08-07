@@ -642,7 +642,8 @@ def SendingEmail(workDate: datetime, lastUpdateFileList: []):
             printmsg.PrintSuccess(f'Sending email')
 
             try:
-                logfile = os.path.join(currentDirectory, f"{curEmail}.txt")
+                now = datetime.now()
+                logfile = os.path.join(currentDirectory, f'{curEmail}{now.strftime("%Y.%m.%d %H-%M-%S")}.txt')
                 with open(logfile, 'a', encoding='utf-8') as f:
                     f.write(f"{curEmail}\n\n{text}\n")
             except Exception as inst:

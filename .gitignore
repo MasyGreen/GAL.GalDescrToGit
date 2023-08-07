@@ -5,4 +5,5 @@ venv/
 Scripts/
 __pycache__/
 *.cfg
+*.txt
 Download
