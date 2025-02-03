@@ -13,6 +13,7 @@ from redminelib import Redmine
 import datetime
 from datetime import datetime as cur_dt
 
+
 # Установка пакетов для Win11
 # pip3 install python-redmine
 # pip3 install colorama
@@ -116,7 +117,7 @@ class DownloadFromFTP(threading.Thread):
             ftp.close()  # Close FTP connection
 
 
-# Thead encode file/Потоковое перекодирование файла
+# Thread encode file/Потоковое перекодирование файла windows-1251->UTF-8
 class EncodeLocalFile(threading.Thread):
     def __init__(self, queue):
         """Инициализация потока"""
@@ -151,8 +152,8 @@ class EncodeLocalFile(threading.Thread):
 
             with open(path_from, 'r', encoding='windows-1251') as fr:
                 for codeText in fr.readlines():
-                    # Убираем стоки с номерами задач
-                    # т.к. тогда всегда будут исправления из-за скользящей нумерации
+                    # Из файла убираем стоки с номерами задач (начинаются с '№')
+                    # Назначение: в файле все задачи нумеруются всегда от 1, и задачи в предыдущем файле тоже начинаются от 1
                     if codeText[0] != '№':
                         encode_text += codeText[:-1] + '\n'  # \r\n
 
@@ -229,6 +230,11 @@ class FTPReader:
                     local_file = re.sub('_(\d)+\.', '.',
                                         file_name)  # регулярное выражение '_'+ 'несколько цифр' + '.'
 
+                    # Для сохранения версии ресурса забираем исходное имя файла, новое в верхнем регистре для поиска
+                    # C_AlterCumulative_RES_91290.txt->C_AlterCumulative_RES.txt
+                    origin_file_name = {"originname": file_name, "newname": local_file.upper()}
+                    origin_file_names.append(origin_file_name)
+
                     # Время файла
                     time_stamp = file[1]['modify']
                     cur_file_date = int(time_stamp[:8])  # int в формате YYYYMMDD
@@ -266,8 +272,8 @@ class FTPReader:
                             os.remove(os.path.join(path, file).lower())
 
             printmsg.print_success(f'Delete {count} old file')
-        except:
-            printmsg.print_error(f'Delete old file')
+        except Exception as ex:
+            printmsg.print_error(f'Delete old file: {ex}')
 
         printmsg.print_header(f'Starting create download list')
         ftp_list = ftp_reader.get_ftp_file_list()  # список файлов с FTP
@@ -290,8 +296,8 @@ class FTPReader:
             queue_ftp.join()
 
             printmsg.print_success(f'Download FTP {len(ftp_list)} files')
-        except:
-            printmsg.print_error(f'Download FTP')
+        except Exception as ex:
+            printmsg.print_error(f'Download FTP: {ex}')
 
 
 # Encode file to UTF8/Перекодирование файлов в UTF8 т.к. GIT не поддерживает WIN1251
@@ -311,8 +317,8 @@ def encode_files():
                         os.remove(os.path.join(path, file).lower())
 
         printmsg.print_success(f'Delete {count} old file')
-    except:
-        printmsg.print_error(f'Delete old file')
+    except Exception as ex:
+        printmsg.print_error(f'Delete old file: {ex}')
 
     # Файлы для перекодировки
     printmsg.print_header(f'Starting get list encode file')
@@ -350,8 +356,8 @@ def encode_files():
         # Ждем завершения работы очереди
         queue_encode_file.join()
         printmsg.print_success(f'Encode {len(dos_code_list)} files')
-    except:
-        printmsg.print_error(f'Encode file')
+    except Exception as ex:
+        printmsg.print_error(f'Encode file: {ex}')
 
 
 # Get date whit out time/Получить дату без времени
@@ -539,7 +545,15 @@ def get_new_text(last_update_file_list: []) -> str:
             index_f = index_f + 1
             filename = el.get("filename")
             filepath = el.get("filepath")
-            result += f'<h3>{index_f} File {filename}</h3>\n'
+            originname = ""
+
+            # Получаем оригинальное имя файла - для определения номера патча
+            # C_AlterCumulative_RES_91290.txt->C_AlterCumulative_RES.txt
+            origin_file_name = [x for x in origin_file_names if x.get("newname") == filename]
+            if len(origin_file_name) > 0:
+                originname = origin_file_name.get("originname")
+
+            result += f'<h3>{index_f} File {filename} ({originname})</h3>\n'
 
             start_i: bool = False  # Начало задачи
             issue_header: bool = False  # Начало текста задачи
@@ -649,7 +663,7 @@ def sending_email(work_date: datetime, last_update_file_list: []):
                 now = cur_dt.now()
 
                 #  Log e-mail
-                email_log_folder = os.path.join(currentDirectory,"EMailLog")
+                email_log_folder = os.path.join(currentDirectory, "EMailLog")
                 if not os.path.exists(email_log_folder):
                     os.makedirs(email_log_folder)
 
@@ -691,7 +705,7 @@ def get_max_date_from_local():
     return result
 
 
-# Check email/проверка email по шаблону
+# Check email/Проверка email по шаблону
 def check_email(email) -> bool:
     regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
     # pass the regular expression
@@ -701,8 +715,7 @@ def check_email(email) -> bool:
     return False
 
 
-# Get watchers from Redmine.Issue to get e-mail/Получение наблюдателей из задачи RedMine,
-# у наблюдателей получаем адреса почты
+# Get watchers from Redmine.Issue to get e-mail/Получение наблюдателей из задачи RedMine, а у наблюдателей адреса почты
 def get_email_from_red_mine() -> str:
     printmsg.print_header('Start GetEmailFromRedMine')
     result = str(appsettings.MailTo)
@@ -732,7 +745,7 @@ def get_email_from_red_mine() -> str:
     return result
 
 
-# Check folder/сли есть *.TXT_WIN1251 - то надо удалить все файлы т.е. предыдущий запуск окончился ошибкой
+# Check folder/сли есть *.TXT_WIN1251 - то надо удалить все файлы (предыдущий запуск окончился ошибкой)
 def check_folder_to_error_end():
     printmsg.print_header(f'Start CheckFolder')
     is_error: bool = False
@@ -743,8 +756,8 @@ def check_folder_to_error_end():
                     if file.find(".TXT_WIN1251") != -1:
                         is_error = True
 
-    except:
-        printmsg.print_error(f'Delete old file')
+    except Exception as ex:
+        printmsg.print_error(f'Delete old file: {ex}')
 
     printmsg.print_success(f'{is_error=}')
     count: int = 0
@@ -759,8 +772,8 @@ def check_folder_to_error_end():
                             os.remove(os.path.join(path, file).lower())
 
             printmsg.print_success(f'Delete {count} old file')
-        except:
-            printmsg.print_error(f'Delete old file')
+        except Exception as ex:
+            printmsg.print_error(f'Delete old file: {ex}')
 
 
 def main():
@@ -775,7 +788,7 @@ def main():
     is_get_last_file_list = True  # получить список последних обновленных файлов
     is_sending_email = True  # отправка email
 
-    # Если есть *.TXT_WIN1251 - то надо удалить все файлы т.е. предыдущий запуск окончился ошибкой
+    # Если есть *.TXT_WIN1251 - то надо удалить все файлы (предыдущий запуск окончился ошибкой)
     check_folder_to_error_end()
 
     # максимальная дата файла в DownLoad
@@ -817,8 +830,8 @@ def main():
                                 os.remove(os.path.join(path, file).lower())
 
                 printmsg.print_success(f'Delete {count} DOS file')
-            except:
-                printmsg.print_error(f'Delete DOS file')
+            except Exception as ex:
+                printmsg.print_error(f'Delete DOS file: {ex}')
 
         # Последние обновленные файлы
         last_update_file_list = []
@@ -840,10 +853,14 @@ if __name__ == '__main__':
     printmsg = PrintMsg()
     printmsg.IsPrintDebug = True
 
+    # Оригинальные и изменённые имена файлов ("originname","newname")
+    # C_AlterCumulative_RES_91290.txt->C_AlterCumulative_RES.txt
+    origin_file_names = []
+
     ftp_reader = FTPReader()  # Работа с FTP
     appsettings = AppSettings()  # Настройки
 
-    printmsg.print_service_message(f'Last update: Cherepanov Maxim masygreen@gmail.com (c), 01.2023')
+    printmsg.print_service_message(f'Last update: Cherepanov Maxim masygreen@gmail.com (c), 02.2025')
     printmsg.print_service_message(f'Download Galaktika description')
     currentDirectory = os.getcwd()
     configFilePath = os.path.join(currentDirectory, 'config.cfg')
