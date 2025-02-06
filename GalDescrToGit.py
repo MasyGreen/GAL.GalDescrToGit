@@ -232,7 +232,7 @@ class FTPReader:
 
                     # Для сохранения версии ресурса забираем исходное имя файла, новое в верхнем регистре для поиска
                     # C_AlterCumulative_RES_91290.txt->C_AlterCumulative_RES.txt
-                    origin_file_name = {"originname": file_name, "newname": local_file.upper()}
+                    origin_file_name = {"origin_name": file_name, "new_name": local_file.upper()}
                     origin_file_names.append(origin_file_name)
 
                     # Время файла
@@ -245,7 +245,14 @@ class FTPReader:
                             "ftpname": file_name,
                             "localname": local_file.upper(),
                             "filedatetme": dt}
-                    result.append(_row)
+
+                    # Для отладки ограничиваем файлы перечнем
+                    if is_debug_dl:
+                        mach_debug = [x for x in is_debug_ld_list if local_file.upper().startswith(x)]
+                        if len(mach_debug) != 0:
+                            result.append(_row)
+                    else:
+                        result.append(_row)
                     printmsg.print_debug(f"*ftp: {_row}")
                     ftp.close()
             printmsg.print_success(f'Count file to download = {len(result)}')
@@ -513,6 +520,7 @@ def read_config(filepath):
 
 # Get list last update file/Получение списка файлов из последнего обновления
 def get_last_file_list(work_date: datetime):
+    printmsg.print_header('Start GetLastFile list')
     result = []
     no_time_date: datetime = get_date_from_datetime(work_date)
     printmsg.print_debug(f'Convert: {work_date}>>>{no_time_date}')
@@ -521,14 +529,43 @@ def get_last_file_list(work_date: datetime):
         if path == currentDownloadFolder:
             for file in files:
                 if file.find(".TXT") != -1:
+
+                    # Получаем оригинальное имя файла - для определения номера патча
+                    origin_name:str = ""
+                    # C_AlterCumulative_RES_91290.txt->C_AlterCumulative_RES.txt
+                    var_origin_file_name = [x for x in origin_file_names if x.get("new_name") == file]
+                    if len(var_origin_file_name) > 0:
+                        origin_name = var_origin_file_name[0].get("origin_name")
+
                     # дата модификации файла
                     time_stamp = os.path.getmtime(os.path.join(path, file))
                     cur_file_date = datetime.datetime.fromtimestamp(time_stamp)  # int в формате YYYYMMDD
 
+                    # версия из файла
+                    version_new:str = read_version_from_file(os.path.join(path, file))
+
+                    # версия из предыдущей загрузки
+                    version_old:str = ""
+                    var_origin_file_version = [x for x in origin_file_version if x.get("new_name") == file]
+                    if len(var_origin_file_version) > 0:
+                        version_old = var_origin_file_version[0].get("version_old")
+                        var_origin_file_version[0]["version_new"] = version_new
+
+
+                    # добавляем файлы совпадающие по дате с датой патчей или отличающиеся версией
+                    is_add_file = False
                     if no_time_date == cur_file_date:
+                        is_add_file = True
+                    if version_old !="" and version_new != "" and (version_old != version_new):
+                        is_add_file = True
+
+                    if is_add_file:
                         row = {"filename": file,
                                "filepath": f'{os.path.join(path, file)}',
-                               "filedatetme": cur_file_date}
+                               "filedatetme": cur_file_date,
+                               "version_old": version_old,
+                               "version_new": version_new,
+                               "origin_name": origin_name}
                         result.append(row)
                         printmsg.print_debug(row)
 
@@ -545,15 +582,12 @@ def get_new_text(last_update_file_list: []) -> str:
             index_f = index_f + 1
             filename = el.get("filename")
             filepath = el.get("filepath")
-            originname = ""
+            origin_name = el.get("origin_name")
+            version_old = el.get("version_old")
+            version_new = el.get("version_new")
 
-            # Получаем оригинальное имя файла - для определения номера патча
-            # C_AlterCumulative_RES_91290.txt->C_AlterCumulative_RES.txt
-            origin_file_name = [x for x in origin_file_names if x.get("newname") == filename]
-            if len(origin_file_name) > 0:
-                originname = origin_file_name.get("originname")
-
-            result += f'<h3>{index_f} File {filename} ({originname})</h3>\n'
+            result += f'<h3>{index_f} File: {filename} ({origin_name})</h3>\n'
+            result += f'<p><b>Версия:</b> {version_old} => {version_new}</p>\n'
 
             start_i: bool = False  # Начало задачи
             issue_header: bool = False  # Начало текста задачи
@@ -610,16 +644,16 @@ def get_new_text(last_update_file_list: []) -> str:
 
 
 # Send email/Отправка e-mail
-def sending_email(work_date: datetime, last_update_file_list: []):
+def sending_email(work_date: datetime, last_update_file_list: [], is_sending_email: bool):
     printmsg.print_header('Start SendingEmail')
     message = '<html><head></head><body>'
-    message += f"<p>Check time: <b>{datetime.datetime.now().strftime('%d %b %Y, %H:%M')}<b></p>\n"
+    message += f"<p>Check time: <b>{datetime.datetime.now().strftime('%d %b %Y, %H:%M')}</b></p>\n"
     message += f"<p>FTP UTC time: <b>{work_date.strftime('%d %b %Y, %H:%M')}</b></p>\n"
     message += f"<p>{appsettings.MailAdditionText}</p>\n\n"
 
     message += f"<h2>Updated files list:</h2>\n<ul>\n"
     for el in last_update_file_list:
-        message += f'<li>{el.get("filename")}</li>\n'
+        message += f'<li>{el.get("filename")} ({el.get("origin_name")}) - {el.get("version_new")}</li>\n'
     message += f"</ul>\n"
 
     if appsettings.IsIncludeNewInMail:
@@ -650,15 +684,22 @@ def sending_email(work_date: datetime, last_update_file_list: []):
             printmsg.print_debug(f'{e_mail_msg.as_string()}')
 
             # Отправка сообщения
-            server = smtplib.SMTP(appsettings.MailSMTPServer, appsettings.MailSMTPPort)
-            server.starttls()
-            server.login(appsettings.MailFrom, appsettings.MailPassword)
+            if is_sending_email:
+                try:
+                    server = smtplib.SMTP(appsettings.MailSMTPServer, appsettings.MailSMTPPort)
+                    server.starttls()
+                    server.login(appsettings.MailFrom, appsettings.MailPassword)
 
-            text = e_mail_msg.as_string()
-            server.sendmail(appsettings.MailFrom, cur_email, text)
-            server.quit()
-            printmsg.print_success(f'Sending email')
+                    text = e_mail_msg.as_string()
+                    server.sendmail(appsettings.MailFrom, cur_email, text)
+                    server.quit()
+                    printmsg.print_success(f'Sending email')
+                except Exception as inst:
+                    printmsg.print_error(f'{type(inst)}')  # the exception instance
+                    printmsg.print_error(f'{inst.args}')  # arguments stored in .args
+                    printmsg.print_error(f'{inst}')  # __str__ allows args to be printed directly,
 
+            # Копирование тела письма в каталог
             try:
                 now = cur_dt.now()
 
@@ -775,6 +816,34 @@ def check_folder_to_error_end():
         except Exception as ex:
             printmsg.print_error(f'Delete old file: {ex}')
 
+# Чтение версии из файла, ожидается, что есть типизированная строка с номером версии
+def read_version_from_file(file_path: str):
+    version: str = ""
+    with open(file_path.lower(), 'r', encoding='UTF-8') as fr:
+        for line in fr.readlines():
+            if line.find('* ВЕРСИЯ:') != -1:
+                version = line.replace("* ВЕРСИЯ:","").strip()
+                break
+    return version
+
+# Чтение версий из файлов в исходном каталоге до его очистки для сравнения
+# Иногда при изменениях дата файла не меняется и как следствие не входит в список рассылки
+def read_versions(outerdict: []):
+    printmsg.print_header(f'Start GetVersion from exist file')
+    try:
+        for path, sub_dirs, files in os.walk(currentDownloadFolder):
+            if path == currentDownloadFolder:
+                for file in files:
+                    if file.upper().find(".TXT") != -1:
+                        version = read_version_from_file(os.path.join(path, file).lower())
+                        row = {"new_name": file.upper(), "version_old": version}
+                        outerdict.append(row)
+                        printmsg.print_debug(f'{row}')
+
+        printmsg.print_success(f'Get version {len(outerdict)} file')
+    except Exception as ex:
+        printmsg.print_error(f'Get version from exist file: {ex}')
+
 
 def main():
     printmsg.print_header('Start work')
@@ -801,13 +870,17 @@ def main():
     if is_get_max_ftp_date:
         ftp_max_date = ftp_reader.get_max_date_from_ftp()
 
-    # Проверка необходимости скачивания обновлений
+    # Проверка необходимости скачивания обновлений (дата локального файла < даты файла на FTP)
     if get_date_from_datetime(local_max_date) < get_date_from_datetime(ftp_max_date):
         is_have_new_file = True
     else:
         printmsg.print_service_message('Нет обновлений')
 
     if is_have_new_file:
+
+        # Сохранить версии из файлов для последующего сравнения
+        read_versions(origin_file_version)
+
         # Перекачать файлы с FTP
         if is_download_ftp:
             ftp_reader.down_load_ftp()
@@ -842,9 +915,8 @@ def main():
                 printmsg.print_debug(f'{el.get("filepath")}')
 
         # Отправка e-mail
-        if is_sending_email:
-            if appsettings.IsSendMail and len(last_update_file_list) > 0:
-                sending_email(ftp_max_date, last_update_file_list)
+        if appsettings.IsSendMail and len(last_update_file_list) > 0:
+            sending_email(ftp_max_date, last_update_file_list, is_sending_email)
 
     printmsg.print_success('End work')
 
@@ -853,9 +925,17 @@ if __name__ == '__main__':
     printmsg = PrintMsg()
     printmsg.IsPrintDebug = True
 
-    # Оригинальные и изменённые имена файлов ("originname","newname")
+    # Оригинальные и изменённые имена файлов ("origin_name","new_name")
     # C_AlterCumulative_RES_91290.txt->C_AlterCumulative_RES.txt
     origin_file_names = []
+
+    # Версия оригинального файла ("new_name","version_old", "version_new")
+    # Предварительно считываем каталог и берем строку с версией - будем сравнивать с вновь скачанной
+    origin_file_version = []
+
+    # True - Включение отладки: отбираем из FTP файлы начинающиеся с (словарь)
+    is_debug_dl = False
+    is_debug_ld_list = {'EXCELLIB3X', 'Z_REPORT', "Z_"}
 
     ftp_reader = FTPReader()  # Работа с FTP
     appsettings = AppSettings()  # Настройки

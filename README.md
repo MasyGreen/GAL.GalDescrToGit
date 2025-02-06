@@ -28,12 +28,14 @@ Pyton 3.10
 
 # Step/Шаги
 Work foldr Download
-* Delete from work folder all *.txt file/удалить все файлы *.txt из рабочего каталога
+* Read version from file/Читаем версию ресурса из существующего файла
+* Delete from work folder all *.txt file/Удалить все файлы *.txt из рабочего каталога
 * Download file from FTP/Скачиваем реестр описаний файлов обновлений с FTP
 * File name to Upper/Файлы переводим в верхний регистр т.к. Галактика постоянно меняет его
 * Clear file name/Из имени файла убираем версию и добавляя к расширению '_win1251'
 * Decode to UTF8/Перекодируем все файлы с '_win1251' из win1251 в UTF-8, в новом имени файла убираем '_win1251'
 * Delete temp file/Удаляем не перекодированные файлы
+* Send e-mail with diff/Отбираем файлы совпадающие по времени с последними патчами + отличающиеся по версии, выбираем только новые сообщения и производим рассылку по выбранным почтовым ящикам
 
 # Issue/Известные проблемы
 На FTP могут быть 2 файла разных версий, загрузится случайный
@@ -43,4 +45,3 @@ Work foldr Download
 
 * git clone git@github.com:MasyGreen/GAL.GalDescrToGit.git
 * В расписание Windows worker.bat (~15:00)
-
