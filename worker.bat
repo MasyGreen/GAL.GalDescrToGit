@@ -9,7 +9,7 @@ CLS
 @ECHO ***1N Start download/e-mail
 
 rem Запуск функционала: загрузка FTP+отправка e-mail
-python.exe "GalDescrToGit.py"
+py -3.8 "GalDescrToGit.py"
 
 rem Каталог с загруженными файлами
 SET download_path=%~d0%~p0\Download\
@@ -34,4 +34,5 @@ git commit -m "%DT%"
 
 @ECHO ***6N Отправка GIT
 git push origin master
+rem ПРИ ПРОБЛЕМАХ git push -f origin master
 rem pause

@@ -227,8 +227,7 @@ class FTPReader:
                 file_type = file[1]['type']
                 if file_type == 'file' and file_name.find('.txt') != -1:  # смотрим только файлы
                     # Оставить только имя файла без версии ресурса
-                    local_file = re.sub('_(\d)+\.', '.',
-                                        file_name)  # регулярное выражение '_'+ 'несколько цифр' + '.'
+                    local_file = re.sub('_(\d)+\.', '.', file_name)  # регулярное выражение '_'+ 'несколько цифр' + '.'
 
                     # Для сохранения версии ресурса забираем исходное имя файла, новое в верхнем регистре для поиска
                     # C_AlterCumulative_RES_91290.txt->C_AlterCumulative_RES.txt
@@ -653,7 +652,7 @@ def sending_email(work_date: datetime, last_update_file_list: [], is_sending_ema
 
     message += f"<h2>Updated files list:</h2>\n<ul>\n"
     for el in last_update_file_list:
-        message += f'<li>{el.get("filename")} ({el.get("origin_name")}) - {el.get("version_new")}</li>\n'
+        message += f'<li>{el.get("filename")} v.{el.get("version_new")}</li>\n'
     message += f"</ul>\n"
 
     if appsettings.IsIncludeNewInMail:
@@ -721,6 +720,18 @@ def sending_email(work_date: datetime, last_update_file_list: [], is_sending_ema
         printmsg.print_error(f'{inst.args}')  # arguments stored in .args
         printmsg.print_error(f'{inst}')  # __str__ allows args to be printed directly,
 
+# Fix ending pack
+def fix_start_app(val:str):
+    now = cur_dt.now()
+
+    #  Log e-mail
+    start_log_folder = os.path.join(currentDirectory, "EStartLog")
+    if not os.path.exists(start_log_folder):
+        os.makedirs(start_log_folder)
+
+    logfile = os.path.join(start_log_folder, f'{now.strftime("%Y.%m.%d %H-%M-%S")} {val}.txt')
+    with open(logfile, 'a', encoding='utf-8') as f:
+        f.write(f"OK")
 
 # Get local max file date/Получение максимальной даты редактирования файла в локальном каталоге
 def get_max_date_from_local():
@@ -847,6 +858,7 @@ def read_versions(outerdict: []):
 
 def main():
     printmsg.print_header('Start work')
+    fix_start_app("STR")
 
     is_have_new_file = False  # проверка необходимости работы - только если есть новые файлы на FTP (по умолчанию должна быть False)
     is_get_max_local_date = True  # получить дату редактирования с локально
@@ -918,7 +930,10 @@ def main():
         if appsettings.IsSendMail and len(last_update_file_list) > 0:
             sending_email(ftp_max_date, last_update_file_list, is_sending_email)
 
+    # Фиксируем событие окончания работы т.к. по разным причинам задача может не выполнятся
+    fix_start_app("END")
     printmsg.print_success('End work')
+
 
 
 if __name__ == '__main__':
